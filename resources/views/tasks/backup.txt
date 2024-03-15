@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task List</title>
+    <link href="{{asset('css/style.css') }}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <main class="container">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6 text-center">
+                    <h1 class="">Task List</h1>
+                    <button id="create" class="btn btn-primary mb-1">Create</button>
+                </div>
+            </div>
+        </div>
+        <div class="card table-responsive">
+            @if(session('success'))
+            <div style="color:green;">{{session('success')}}</div>
+            @endif
+            <table class="table table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Task</th>
+                        <th>Description</th>
+                        <th>Completed?</th>
+                        <th>Update</th>
+                        <th>Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($tasks as $task)
+                    <tr>
+                        <td>{{$task->tid}}</td>
+                        <td>{{$task->title}}</td>
+                        <td>{{$task->description}}</td>
+                        <td>
+                            <form action="/tasks/complete/{{$task->tid}}" method="post">
+                                @csrf
+                                @method('put')
+                                <input type="hidden" name="complete" value="{{ $task->complete == 1 ? 0 : 1 }}">
+                                <button type="submit" class="btn btn-success">
+                                    {{ $task->complete == 1 ? 'Completed' : 'Incomplete' }}
+                                </button>
+                            </form>
+                        </td>
+                        <td><a class="btn btn-info" href="{{ route('tasks.edit', ['task' => $task->tid]) }}">Edit</a></td>
+                        <!-- <td><a class="btn btn-info" href="/tasks/edit/{{$task->id}}">Edit</a></td> -->
+                        
+                        <td>
+                            <form action="{{route('tasks.destroy',['task'=>$task->tid])}}" method="post" style="display: inline-block;">
+                                @csrf
+                                @method('delete')
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+
+    <!-- <button><a href="{{ route('tasks.create')}}">Create</a></button> -->
+    <script>
+        document.getElementById("create").onclick = function() {
+            location.href = "{{ route('tasks.create')}}";
+        };
+    </script>
+</body>
+
+</html>
+
+
+
+
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+
+class UploadController extends Controller
+{
+    // stores the upload
+    public function store(Request $request): RedirectResponse
+    {
+        // Validate the incoming file. Refuses anything bigger than 2048 kilobyes (=2MB)
+        $request->validate([
+            'file_upload' => 'required|mimes:pdf,jpg,png|max:2048',
+        ]);
+
+        // Store the file in storage\app\public folder
+        $file = $request->file('file_upload');
+        $fileName = $file->getClientOriginalName();
+        $filePath = $file->store('uploads', 'public');
+
+        // Store file information in the database
+        $uploadedFile = new UploadedFile();
+        $uploadedFile->filename = $fileName;
+        $uploadedFile->original_name = $file->getClientOriginalName();
+        $uploadedFile->file_path = $filePath;
+        $uploadedFile->save();
+
+        // Redirect back to the index page with a success message
+        return redirect()->route('uploads.index')
+            ->with('success', "File `{$uploadedFile->original_name}` uploaded successfully.");
+    }
+
+    // shows the create form
+    public function create()
+    {
+        return view('uploads.create');
+    }
+
+    // shows the uploads index
+    public function index()
+    {
+        $uploadedFiles = UploadedFile::all();
+        return view('uploads.index', compact('uploadedFiles'));
+    }
+}
